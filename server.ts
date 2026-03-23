@@ -14,26 +14,26 @@ async function startServer() {
   const app = express();
   const PORT = Number(process.env.PORT) || 3000;
 
-  // Enable CORS for all origins
+  // Habilitar CORS para que Vercel pueda hablar con Render
   app.use(cors({ origin: '*' }));
   app.use(express.json());
 
-  // Configure multer for memory storage
   const storage = multer.memoryStorage();
   const upload = multer({ storage });
 
   // Google Drive Configuration
   const FOLDER_ID = "1BF6dinP7UqgkR207UuuPy94_mh42ncK_";
   
+  // CONFIGURACIÓN DE SEGURIDAD CORREGIDA
   const auth = new google.auth.JWT({
     email: process.env.GOOGLE_CLIENT_EMAIL,
+    // El replace asegura que los \n se conviertan en saltos de línea reales
     key: process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
     scopes: ['https://www.googleapis.com/auth/drive.file']
   });
 
   const drive = google.drive({ version: 'v3', auth });
 
-  // API routes
   app.post("/upload", upload.single("files"), async (req, res) => {
     try {
       console.log("Received form data:", req.body);
@@ -48,7 +48,6 @@ async function startServer() {
         };
 
         const media = {
-          mimeType: req.file.mimetype,
           body: Readable.from(req.file.buffer),
         };
 
@@ -68,17 +67,17 @@ async function startServer() {
         data: req.body,
         fileUrl: fileUrl
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error uploading to Drive:", error);
       res.status(500).json({ 
         success: false,
         message: "Error al procesar el diagnóstico",
-        error: error instanceof Error ? error.message : String(error)
+        error: error.message || String(error)
       });
     }
   });
 
-  // Vite middleware for development
+  // Manejo de archivos estáticos y Vite
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({
       server: { middlewareMode: true },
@@ -94,7 +93,7 @@ async function startServer() {
   }
 
   app.listen(PORT, "0.0.0.0", () => {
-    console.log(`Server running on http://localhost:${PORT}`);
+    console.log(`Server running on port ${PORT}`);
   });
 }
 
