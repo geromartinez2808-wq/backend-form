@@ -21,13 +21,13 @@ async function startServer() {
   const storage = multer.memoryStorage();
   const upload = multer({ storage });
 
-  // Google Drive Configuration
+  // ID de tu carpeta de Google Drive
   const FOLDER_ID = "1BF6dinP7UqgkR207UuuPy94_mh42ncK_";
   
-  // CONFIGURACIÓN DE SEGURIDAD CORREGIDA
+  // CONFIGURACIÓN DE SEGURIDAD
   const auth = new google.auth.JWT({
     email: process.env.GOOGLE_CLIENT_EMAIL,
-    // El replace asegura que los \n se conviertan en saltos de línea reales
+    // El .replace asegura que los \n se conviertan en saltos de línea reales
     key: process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
     scopes: ['https://www.googleapis.com/auth/drive.file']
   });
@@ -48,6 +48,7 @@ async function startServer() {
         };
 
         const media = {
+          mimeType: req.file.mimetype,
           body: Readable.from(req.file.buffer),
         };
 
@@ -55,6 +56,8 @@ async function startServer() {
           requestBody: fileMetadata,
           media: media,
           fields: 'id, webViewLink',
+          // MODIFICACIÓN CRÍTICA: Permite usar la cuota de tu Drive personal
+          supportsAllDrives: true, 
         });
 
         fileUrl = driveResponse.data.webViewLink;
