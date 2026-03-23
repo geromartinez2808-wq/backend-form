@@ -14,90 +14,64 @@ async function startServer() {
   const app = express();
   const PORT = Number(process.env.PORT) || 3000;
 
-  // Habilitar CORS para que Vercel pueda hablar con Render
   app.use(cors({ origin: '*' }));
   app.use(express.json());
 
   const storage = multer.memoryStorage();
   const upload = multer({ storage });
 
-  // ID de tu carpeta de Google Drive
   const FOLDER_ID = "1BF6dinP7UqgkR207UuuPy94_mh42ncK_";
   
-  // CONFIGURACIÓN DE SEGURIDAD
   const auth = new google.auth.JWT({
     email: process.env.GOOGLE_CLIENT_EMAIL,
-    // El .replace asegura que los \n se conviertan en saltos de línea reales
     key: process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
-    scopes: ['https://www.googleapis.com/auth/drive.file']
+    scopes: ['https://www.googleapis.com/auth/drive.file', 'https://www.googleapis.com/auth/drive']
   });
 
   const drive = google.drive({ version: 'v3', auth });
 
   app.post("/upload", upload.single("files"), async (req, res) => {
     try {
-      console.log("Received form data:", req.body);
+      console.log("Iniciando subida para:", req.body.nombre);
       let fileUrl = null;
 
       if (req.file) {
-        console.log("Received file:", req.file.originalname);
-        
-        const fileMetadata = {
-          name: `${Date.now()}-${req.file.originalname}`,
-          parents: [FOLDER_ID],
-        };
-
-        const media = {
-          mimeType: req.file.mimetype,
-          body: Readable.from(req.file.buffer),
-        };
-
+        // Subida con parámetros de compatibilidad total
         const driveResponse = await drive.files.create({
-          requestBody: fileMetadata,
-          media: media,
+          requestBody: {
+            name: `${Date.now()}-${req.file.originalname}`,
+            parents: [FOLDER_ID],
+          },
+          media: {
+            mimeType: req.file.mimetype,
+            body: Readable.from(req.file.buffer),
+          },
           fields: 'id, webViewLink',
-          // MODIFICACIÓN CRÍTICA: Permite usar la cuota de tu Drive personal
-          supportsAllDrives: true, 
-        });
+          supportsAllDrives: true, // Para unidades compartidas
+          ignoreDefaultVisibility: true // Evita que use la cuota del robot
+        } as any);
 
         fileUrl = driveResponse.data.webViewLink;
-        console.log("File uploaded to Drive:", driveResponse.data.id);
+        console.log("✅ ÉXITO: Archivo en Drive con ID:", driveResponse.data.id);
       }
       
-      res.status(200).json({ 
-        success: true,
-        message: "Diagnóstico recibido correctamente",
-        data: req.body,
-        fileUrl: fileUrl
-      });
+      res.status(200).json({ success: true, fileUrl });
     } catch (error: any) {
-      console.error("Error uploading to Drive:", error);
-      res.status(500).json({ 
-        success: false,
-        message: "Error al procesar el diagnóstico",
-        error: error.message || String(error)
-      });
+      console.error("❌ ERROR DE GOOGLE:", error.message);
+      res.status(500).json({ success: false, error: error.message });
     }
   });
 
-  // Manejo de archivos estáticos y Vite
   if (process.env.NODE_ENV !== "production") {
-    const vite = await createViteServer({
-      server: { middlewareMode: true },
-      appType: "spa",
-    });
+    const vite = await createViteServer({ server: { middlewareMode: true }, appType: "spa" });
     app.use(vite.middlewares);
   } else {
     const distPath = path.join(process.cwd(), "dist");
     app.use(express.static(distPath));
-    app.get("*", (req, res) => {
-      res.sendFile(path.join(distPath, "index.html"));
-    });
+    app.get("*", (req, res) => res.sendFile(path.join(distPath, "index.html")));
   }
 
-  app.listen(PORT, "0.0.0.0", () => {
-    console.log(`Server running on port ${PORT}`);
-  });
+  app.listen(PORT, "0.0.0.0", () => console.log(`Servidor en puerto ${PORT}`));
 }
 
 startServer();
