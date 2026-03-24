@@ -4,11 +4,7 @@ import path from "path";
 import cors from "cors";
 import { google } from "googleapis";
 import { Readable } from "stream";
-import { createServer as createViteServer } from "vite";
-import { fileURLToPath } from "url";
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+import nodemailer from "nodemailer";
 
 async function startServer() {
   const app = express();
@@ -20,83 +16,73 @@ async function startServer() {
   const storage = multer.memoryStorage();
   const upload = multer({ storage });
 
-  // ID de tu carpeta nueva (Asegurate que sea la 1Xto1XBcZgnPYBQZCL6aDc_CIwQ51DE34)
+  // CONFIGURACIÓN DRIVE
   const FOLDER_ID = "1Xto1XBcZgnPYBQZCL6aDc_CIwQ51DE34";
-  
   const auth = new google.auth.JWT({
     email: process.env.GOOGLE_CLIENT_EMAIL,
     key: process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
-    scopes: [
-      'https://www.googleapis.com/auth/drive.file',
-      'https://www.googleapis.com/auth/drive'
-    ]
+    scopes: ['https://www.googleapis.com/auth/drive.file', 'https://www.googleapis.com/auth/drive']
   });
-
   const drive = google.drive({ version: 'v3', auth });
 
-  app.post("/upload", upload.single("files"), async (req, res) => {
-    try {
-      console.log("🚀 Iniciando subida forzada para:", req.body.nombre);
-      
-      if (!req.file) {
-        return res.status(400).json({ success: false, message: "No hay archivo" });
-      }
-
-      // SUBIDA PASO 1: Crear el archivo ignorando la cuota del robot
-      const driveResponse = await drive.files.create({
-        requestBody: {
-          name: `${Date.now()}-${req.file.originalname}`,
-          parents: [FOLDER_ID],
-        },
-        media: {
-          mimeType: req.file.mimetype,
-          body: Readable.from(req.file.buffer),
-        },
-        fields: 'id, webViewLink',
-        supportsAllDrives: true,
-      } as any);
-
-      const fileId = driveResponse.data.id;
-
-      // SUBIDA PASO 2: Transferencia de permisos para saltar el error de cuota
-      // Esto hace que el archivo sea "hijo" legítimo de la carpeta y no del robot
-      await drive.permissions.create({
-        fileId: fileId!,
-        transferOwnership: false, // Las cuentas de servicio no pueden transferir, pero sí dar rol de 'anyone'
-        requestBody: {
-          role: 'reader',
-          type: 'anyone',
-        },
-        supportsAllDrives: true,
-      } as any);
-
-      console.log("✅ ¡LOGRADO! Archivo visible en Drive:", fileId);
-      
-      res.status(200).json({ 
-        success: true, 
-        fileUrl: driveResponse.data.webViewLink 
-      });
-
-    } catch (error: any) {
-      console.error("❌ ERROR CRÍTICO:", error.message);
-      res.status(500).json({ 
-        success: false, 
-        message: "Error de cuota (Google Drive)",
-        details: error.message 
-      });
+  // CONFIGURACIÓN EMAIL (Nodemailer)
+  const transporter = nodemailer.createTransport({
+    service: 'gmail',
+    auth: {
+      user: 'geromartinez2808@gmail.com', // El que envía
+      pass: process.env.EMAIL_APP_PASSWORD // Contraseña de aplicación
     }
   });
 
-  if (process.env.NODE_ENV !== "production") {
-    const vite = await createViteServer({ server: { middlewareMode: true }, appType: "spa" });
-    app.use(vite.middlewares);
-  } else {
-    const distPath = path.join(process.cwd(), "dist");
-    app.use(express.static(distPath));
-    app.get("*", (req, res) => res.sendFile(path.join(distPath, "index.html")));
-  }
+  app.post("/upload", upload.single("files"), async (req, res) => {
+    try {
+      console.log("Recibiendo datos para:", req.body.nombre);
+      let fileUrl = "No se adjuntó archivo";
 
-  app.listen(PORT, "0.0.0.0", () => console.log(`Backend activo en puerto ${PORT}`));
+      if (req.file) {
+        const driveResponse = await drive.files.create({
+          requestBody: {
+            name: `${Date.now()}-${req.file.originalname}`,
+            parents: [FOLDER_ID],
+          },
+          media: {
+            mimeType: req.file.mimetype,
+            body: Readable.from(req.file.buffer),
+          },
+          fields: 'id, webViewLink',
+          supportsAllDrives: true,
+        } as any);
+        fileUrl = driveResponse.data.webViewLink!;
+      }
+
+      // ENVÍO DE MAIL A LA CUENTA DE DESTINO
+      const mailOptions = {
+        from: 'Sistema de Diagnósticos <geromartinez2808@gmail.com>',
+        to: 'geronimoadm241@gmail.com', // TU CUENTA DE DESTINO
+        subject: `Nuevo Diagnóstico: ${req.body.nombre}`,
+        html: `
+          <h2>Nuevo formulario recibido</h2>
+          <p><strong>Nombre:</strong> ${req.body.nombre}</p>
+          <p><strong>Empresa:</strong> ${req.body.empresa}</p>
+          <p><strong>Email cliente:</strong> ${req.body.email}</p>
+          <p><strong>Problema:</strong> ${req.body.problema}</p>
+          <p><strong>Mejora solicitada:</strong> ${req.body.mejora}</p>
+          <br>
+          <p><strong>Archivo en Drive:</strong> <a href="${fileUrl}">${fileUrl}</a></p>
+        `
+      };
+
+      await transporter.sendMail(mailOptions);
+      console.log("✅ Mail enviado a geronimoadm241@gmail.com");
+
+      res.status(200).json({ success: true, fileUrl });
+    } catch (error: any) {
+      console.error("❌ Error:", error.message);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  });
+
+  app.listen(PORT, "0.0.0.0", () => console.log(`Servidor en puerto ${PORT}`));
 }
 
 startServer();
