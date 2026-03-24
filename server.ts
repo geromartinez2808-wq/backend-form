@@ -14,7 +14,7 @@ async function startServer() {
   const storage = multer.memoryStorage();
   const upload = multer({ storage });
 
-  // MOTOR DE ENVÍO (Cuenta empresa)
+  // MOTOR DE ENVÍO (Usando tu cuenta de empresa)
   const transporter = nodemailer.createTransport({
     service: 'gmail',
     auth: {
@@ -25,40 +25,40 @@ async function startServer() {
 
   app.post("/upload", upload.single("files"), async (req, res) => {
     try {
-      console.log("📩 Nuevo diagnóstico recibido de:", req.body.nombre);
+      console.log("📩 Recibiendo datos de:", req.body.nombre);
 
       const mailOptions: any = {
         from: '"Sistema de Diagnósticos" <geronimoadm241@gmail.com>',
-        to: 'geronimoadm241@gmail.com', // Te llega a vos mismo
-        subject: `NUEVO FORMULARIO: ${req.body.nombre}`,
+        to: 'geronimoadm241@gmail.com', 
+        subject: `NUEVO DIAGNÓSTICO: ${req.body.nombre}`,
         html: `
-          <div style="font-family: sans-serif; padding: 20px; border: 1px solid #eee;">
-            <h2 style="color: #333;">Datos del Cliente</h2>
+          <div style="font-family: sans-serif; padding: 20px; border: 1px solid #eee; border-radius: 10px;">
+            <h2 style="color: #2c3e50;">Nuevo Formulario Recibido</h2>
             <p><strong>Nombre:</strong> ${req.body.nombre}</p>
             <p><strong>Empresa:</strong> ${req.body.empresa}</p>
             <p><strong>Email:</strong> ${req.body.email}</p>
             <p><strong>Problema:</strong> ${req.body.problema}</p>
             <p><strong>Mejora:</strong> ${req.body.mejora}</p>
             <hr>
-            <p style="color: #666;"><i>El archivo adjunto se encuentra abajo.</i></p>
+            <p style="color: #7f8c8d;"><i>El archivo adjunto se encuentra al pie de este correo.</i></p>
           </div>
         `,
         attachments: []
       };
 
-      // Si hay archivo, lo pegamos al mail
       if (req.file) {
         mailOptions.attachments.push({
           filename: req.file.originalname,
           content: req.file.buffer
         });
-        console.log("📎 Archivo adjuntado correctamente.");
+        console.log("📎 Archivo adjuntado al mail.");
       }
 
       await transporter.sendMail(mailOptions);
-      console.log("✅ Mail con adjunto enviado con éxito.");
+      console.log("✅ Mail enviado con éxito.");
 
-      res.status(200).json({ success: true, message: "Enviado correctamente" });
+      // ESTO ES CLAVE: Le respondemos a la web que todo salió bien
+      res.status(200).json({ success: true, message: "¡Recibido con éxito!" });
 
     } catch (error: any) {
       console.error("❌ ERROR:", error.message);
@@ -66,7 +66,7 @@ async function startServer() {
     }
   });
 
-  app.listen(PORT, "0.0.0.0", () => console.log(`Servidor de correos activo`));
+  app.listen(PORT, "0.0.0.0", () => console.log(`Servidor de correos activo en puerto ${PORT}`));
 }
 
 startServer();
