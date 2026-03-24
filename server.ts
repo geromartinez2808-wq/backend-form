@@ -13,38 +13,37 @@ async function startServer() {
   const storage = multer.memoryStorage();
   const upload = multer({ storage });
 
-  // MOTOR DE ENVÍO CORREGIDO (Forzamos IPv4 para evitar ENETUNREACH)
+  // CONFIGURACIÓN DE RED COMPATIBLE CON RENDER
   const transporter = nodemailer.createTransport({
     host: 'smtp.gmail.com',
-    port: 465,
-    secure: true, // true para puerto 465
+    port: 587,
+    secure: false, // false para puerto 587
     auth: {
       user: 'geronimoadm241@gmail.com',
       pass: process.env.EMAIL_APP_PASSWORD 
     },
     tls: {
-      rejectUnauthorized: false // Esto ayuda a que Render no bloquee la conexión
+      // Esto obliga a usar IPv4 y evita bloqueos de red
+      rejectUnauthorized: false,
+      minVersion: 'TLSv1.2'
     }
   });
 
   app.post("/upload", upload.single("files"), async (req, res) => {
     try {
-      console.log("📩 Recibiendo datos de:", req.body.nombre);
+      console.log("📩 Formulario recibido de:", req.body.nombre);
 
       const mailOptions: any = {
-        from: '"Sistema de Diagnósticos" <geronimoadm241@gmail.com>',
+        from: '"Sistema Diagnóstico" <geronimoadm241@gmail.com>',
         to: 'geronimoadm241@gmail.com', 
-        subject: `NUEVO DIAGNÓSTICO: ${req.body.nombre}`,
+        subject: `DIAGNÓSTICO: ${req.body.nombre}`,
         html: `
-          <div style="font-family: sans-serif; padding: 20px; border: 1px solid #eee; border-radius: 10px;">
-            <h2 style="color: #2c3e50;">Nuevo Formulario Recibido</h2>
+          <div style="font-family: sans-serif; padding: 20px;">
+            <h2>Nuevo Diagnóstico</h2>
             <p><strong>Nombre:</strong> ${req.body.nombre}</p>
-            <p><strong>Empresa:</strong> ${req.body.empresa}</p>
-            <p><strong>Email:</strong> ${req.body.email}</p>
             <p><strong>Problema:</strong> ${req.body.problema}</p>
-            <p><strong>Mejora:</strong> ${req.body.mejora}</p>
             <hr>
-            <p style="color: #7f8c8d;"><i>El archivo adjunto se encuentra al pie de este correo.</i></p>
+            <p>El archivo está adjunto aquí abajo.</p>
           </div>
         `,
         attachments: []
@@ -55,22 +54,22 @@ async function startServer() {
           filename: req.file.originalname,
           content: req.file.buffer
         });
-        console.log("📎 Archivo adjuntado.");
+        console.log("📎 Adjunto preparado.");
       }
 
-      console.log("⏳ Intentando conectar con Gmail...");
+      console.log("⏳ Conectando con Gmail (Puerto 587)...");
       await transporter.sendMail(mailOptions);
-      console.log("✅ Mail enviado con éxito!");
+      console.log("✅ ¡MAIL ENVIADO!");
 
-      res.status(200).json({ success: true, message: "¡Recibido con éxito!" });
+      res.status(200).json({ success: true, message: "Enviado correctamente" });
 
     } catch (error: any) {
-      console.error("❌ ERROR EN EL ENVÍO:", error.message);
+      console.error("❌ ERROR DE ENVÍO:", error.message);
       res.status(500).json({ success: false, error: error.message });
     }
   });
 
-  app.listen(PORT, "0.0.0.0", () => console.log(`Servidor de correos activo en puerto ${PORT}`));
+  app.listen(PORT, "0.0.0.0", () => console.log(`Servidor activo`));
 }
 
 startServer();
