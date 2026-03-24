@@ -1,8 +1,6 @@
 import express from "express";
 import multer from "multer";
 import cors from "cors";
-import { google } from "googleapis";
-import { Readable } from "stream";
 import nodemailer from "nodemailer";
 
 async function startServer() {
@@ -12,17 +10,11 @@ async function startServer() {
   app.use(cors({ origin: '*' }));
   app.use(express.json());
 
+  // Configuramos multer para recibir el archivo en memoria
   const storage = multer.memoryStorage();
   const upload = multer({ storage });
 
-  const FOLDER_ID = "1Xto1XBcZgnPYBQZCL6aDc_CIwQ51DE34";
-  const auth = new google.auth.JWT({
-    email: process.env.GOOGLE_CLIENT_EMAIL,
-    key: process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
-    scopes: ['https://www.googleapis.com/auth/drive.file', 'https://www.googleapis.com/auth/drive']
-  });
-  const drive = google.drive({ version: 'v3', auth });
-
+  // MOTOR DE ENVÍO (geronimoadm241)
   const transporter = nodemailer.createTransport({
     service: 'gmail',
     auth: {
@@ -33,52 +25,49 @@ async function startServer() {
 
   app.post("/upload", upload.single("files"), async (req, res) => {
     try {
-      if (!req.file) throw new Error("Falta archivo");
+      console.log("📩 Recibiendo nuevo diagnóstico de:", req.body.nombre);
 
-      console.log("🚀 Intentando subida con bypass de cuota...");
-
-      const driveResponse = await drive.files.create({
-        requestBody: {
-          name: `${Date.now()}-${req.file.originalname}`,
-          parents: [FOLDER_ID],
-        },
-        media: {
-          mimeType: req.file.mimetype,
-          body: Readable.from(req.file.buffer),
-        },
-        fields: 'id, webViewLink',
-        supportsAllDrives: true,
-        // ESTA LINEA ES EL TRUCO FINAL PARA LA CUOTA
-        useContentAbstraction: true 
-      } as any);
-
-      const fileUrl = driveResponse.data.webViewLink;
-
-      const mailOptions = {
-        from: '"Sistema Diagnóstico" <geronimoadm241@gmail.com>',
+      // Preparamos el mail
+      const mailOptions: any = {
+        from: '"Sistema de Diagnósticos" <geronimoadm241@gmail.com>',
         to: 'geronimoadm241@gmail.com',
         subject: `NUEVO DIAGNÓSTICO: ${req.body.nombre}`,
         html: `
-          <h3>Nuevo Formulario</h3>
-          <p><strong>Nombre:</strong> ${req.body.nombre}</p>
-          <p><strong>Problema:</strong> ${req.body.problema}</p>
-          <br>
-          <p><strong>Link al archivo:</strong> <a href="${fileUrl}">${fileUrl}</a></p>
-        `
+          <div style="font-family: sans-serif; padding: 20px; border: 1px solid #ddd;">
+            <h2 style="color: #2c3e50;">Datos del Formulario</h2>
+            <p><strong>Nombre:</strong> ${req.body.nombre}</p>
+            <p><strong>Empresa:</strong> ${req.body.empresa}</p>
+            <p><strong>Email:</strong> ${req.body.email}</p>
+            <p><strong>Problema:</strong> ${req.body.problema}</p>
+            <p><strong>Mejora:</strong> ${req.body.mejora}</p>
+            <hr>
+            <p><i>El archivo está adjunto a este correo electrónico.</i></p>
+          </div>
+        `,
+        attachments: []
       };
 
+      // Si el cliente subió un archivo, lo adjuntamos al mail
+      if (req.file) {
+        mailOptions.attachments.push({
+          filename: req.file.originalname,
+          content: req.file.buffer
+        });
+        console.log("📎 Archivo adjuntado al mail con éxito.");
+      }
+
       await transporter.sendMail(mailOptions);
-      console.log("✅ TODO OK: Mail enviado.");
-      res.status(200).json({ success: true, fileUrl });
+      console.log("✅ Mail enviado correctamente a la empresa.");
+
+      res.status(200).json({ success: true, message: "Enviado con éxito" });
 
     } catch (error: any) {
-      console.error("❌ ERROR:", error.message);
-      // Si falla Drive, intentamos mandar el mail igual avisando que el archivo no subió
+      console.error("❌ ERROR AL ENVIAR:", error.message);
       res.status(500).json({ success: false, error: error.message });
     }
   });
 
-  app.listen(PORT, "0.0.0.0", () => console.log(`Servidor activo`));
+  app.listen(PORT, "0.0.0.0", () => console.log(`Servidor activo en puerto ${PORT}`));
 }
 
 startServer();
