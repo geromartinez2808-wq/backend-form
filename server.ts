@@ -2,6 +2,10 @@ import express from "express";
 import multer from "multer";
 import cors from "cors";
 import nodemailer from "nodemailer";
+import dns from "dns";
+
+// TRUCO MAESTRO: Forzamos a que el servidor use IPv4 para evitar el error de Render
+dns.setDefaultResultOrder("ipv4first");
 
 async function startServer() {
   const app = express();
@@ -13,37 +17,31 @@ async function startServer() {
   const storage = multer.memoryStorage();
   const upload = multer({ storage });
 
-  // CONFIGURACIÓN DE RED COMPATIBLE CON RENDER
   const transporter = nodemailer.createTransport({
     host: 'smtp.gmail.com',
-    port: 587,
-    secure: false, // false para puerto 587
+    port: 465,
+    secure: true, 
     auth: {
       user: 'geronimoadm241@gmail.com',
       pass: process.env.EMAIL_APP_PASSWORD 
-    },
-    tls: {
-      // Esto obliga a usar IPv4 y evita bloqueos de red
-      rejectUnauthorized: false,
-      minVersion: 'TLSv1.2'
     }
   });
 
   app.post("/upload", upload.single("files"), async (req, res) => {
     try {
-      console.log("📩 Formulario recibido de:", req.body.nombre);
+      console.log("📩 Recibiendo:", req.body.nombre);
 
       const mailOptions: any = {
         from: '"Sistema Diagnóstico" <geronimoadm241@gmail.com>',
         to: 'geronimoadm241@gmail.com', 
-        subject: `DIAGNÓSTICO: ${req.body.nombre}`,
+        subject: `NUEVO: ${req.body.nombre}`,
         html: `
-          <div style="font-family: sans-serif; padding: 20px;">
-            <h2>Nuevo Diagnóstico</h2>
+          <div style="font-family: sans-serif; padding: 20px; border: 1px solid #ddd;">
+            <h2>Datos del Formulario</h2>
             <p><strong>Nombre:</strong> ${req.body.nombre}</p>
             <p><strong>Problema:</strong> ${req.body.problema}</p>
             <hr>
-            <p>El archivo está adjunto aquí abajo.</p>
+            <p>Archivo adjunto incluido.</p>
           </div>
         `,
         attachments: []
@@ -54,22 +52,22 @@ async function startServer() {
           filename: req.file.originalname,
           content: req.file.buffer
         });
-        console.log("📎 Adjunto preparado.");
+        console.log("📎 Archivo cargado.");
       }
 
-      console.log("⏳ Conectando con Gmail (Puerto 587)...");
+      console.log("⏳ Intentando envío (Modo IPv4 Forzado)...");
       await transporter.sendMail(mailOptions);
-      console.log("✅ ¡MAIL ENVIADO!");
+      console.log("✅ ¡ÉXITO TOTAL!");
 
-      res.status(200).json({ success: true, message: "Enviado correctamente" });
+      res.status(200).json({ success: true });
 
     } catch (error: any) {
-      console.error("❌ ERROR DE ENVÍO:", error.message);
+      console.error("❌ ERROR FINAL:", error.message);
       res.status(500).json({ success: false, error: error.message });
     }
   });
 
-  app.listen(PORT, "0.0.0.0", () => console.log(`Servidor activo`));
+  app.listen(PORT, "0.0.0.0", () => console.log(`Servidor en puerto ${PORT}`));
 }
 
 startServer();
