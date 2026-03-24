@@ -10,16 +10,20 @@ async function startServer() {
   app.use(cors({ origin: '*' }));
   app.use(express.json());
 
-  // Recibimos el archivo en memoria temporal
   const storage = multer.memoryStorage();
   const upload = multer({ storage });
 
-  // MOTOR DE ENVÍO (Usando tu cuenta de empresa)
+  // MOTOR DE ENVÍO CORREGIDO (Forzamos IPv4 para evitar ENETUNREACH)
   const transporter = nodemailer.createTransport({
-    service: 'gmail',
+    host: 'smtp.gmail.com',
+    port: 465,
+    secure: true, // true para puerto 465
     auth: {
       user: 'geronimoadm241@gmail.com',
       pass: process.env.EMAIL_APP_PASSWORD 
+    },
+    tls: {
+      rejectUnauthorized: false // Esto ayuda a que Render no bloquee la conexión
     }
   });
 
@@ -51,17 +55,17 @@ async function startServer() {
           filename: req.file.originalname,
           content: req.file.buffer
         });
-        console.log("📎 Archivo adjuntado al mail.");
+        console.log("📎 Archivo adjuntado.");
       }
 
+      console.log("⏳ Intentando conectar con Gmail...");
       await transporter.sendMail(mailOptions);
-      console.log("✅ Mail enviado con éxito.");
+      console.log("✅ Mail enviado con éxito!");
 
-      // ESTO ES CLAVE: Le respondemos a la web que todo salió bien
       res.status(200).json({ success: true, message: "¡Recibido con éxito!" });
 
     } catch (error: any) {
-      console.error("❌ ERROR:", error.message);
+      console.error("❌ ERROR EN EL ENVÍO:", error.message);
       res.status(500).json({ success: false, error: error.message });
     }
   });
