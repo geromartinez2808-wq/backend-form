@@ -34,12 +34,14 @@ export default async function handler(req, res) {
 
       // ✅ CONFIGURAR TRANSPORTER
       const transporter = nodemailer.createTransport({
-        service: "gmail",
-        auth: {
-          user: "geronimomartinez2808@gmail.com",
-          pass: process.env.EMAIL_PASS,
-        },
-      });
+  host: "smtp.gmail.com",
+  port: 587,
+  secure: false,
+  auth: {
+    user: "geronimomartinez2808@gmail.com",
+    pass: process.env.EMAIL_PASS,
+  },
+});
 
       // ✅ ADJUNTOS
       let attachments = [];
