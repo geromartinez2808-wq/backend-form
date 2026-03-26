@@ -4,7 +4,6 @@ import cors from "cors";
 import nodemailer from "nodemailer";
 import dns from "dns";
 
-// TRUCO MAESTRO: Forzamos a que el servidor use IPv4 para evitar el error de Render
 dns.setDefaultResultOrder("ipv4first");
 
 async function startServer() {
@@ -29,19 +28,26 @@ async function startServer() {
 
   app.post("/upload", upload.single("files"), async (req, res) => {
     try {
-      console.log("📩 Recibiendo:", req.body.nombre);
-
+      // Leemos TODOS los campos que manda el OnboardingForm.tsx
+      const { nombre, empresa, email, actividad, metodoAdmin, problema, mejora } = req.body;
+      
       const mailOptions: any = {
         from: '"Sistema Diagnóstico" <geronimoadm241@gmail.com>',
         to: 'geronimoadm241@gmail.com', 
-        subject: `NUEVO: ${req.body.nombre}`,
+        subject: `NUEVO: ${nombre} - ${empresa}`,
         html: `
           <div style="font-family: sans-serif; padding: 20px; border: 1px solid #ddd;">
             <h2>Datos del Formulario</h2>
-            <p><strong>Nombre:</strong> ${req.body.nombre}</p>
-            <p><strong>Problema:</strong> ${req.body.problema}</p>
+            <p><strong>Nombre:</strong> ${nombre}</p>
+            <p><strong>Empresa:</strong> ${empresa}</p>
+            <p><strong>Email:</strong> ${email}</p>
             <hr>
-            <p>Archivo adjunto incluido.</p>
+            <p><strong>Actividad:</strong> ${actividad}</p>
+            <p><strong>Método Actual:</strong> ${metodoAdmin}</p>
+            <p><strong>Problemas:</strong> ${problema}</p>
+            <p><strong>Objetivo:</strong> ${mejora}</p>
+            <hr>
+            <p>Archivo adjunto incluido abajo.</p>
           </div>
         `,
         attachments: []
@@ -52,17 +58,11 @@ async function startServer() {
           filename: req.file.originalname,
           content: req.file.buffer
         });
-        console.log("📎 Archivo cargado.");
       }
 
-      console.log("⏳ Intentando envío (Modo IPv4 Forzado)...");
       await transporter.sendMail(mailOptions);
-      console.log("✅ ¡ÉXITO TOTAL!");
-
       res.status(200).json({ success: true });
-
     } catch (error: any) {
-      console.error("❌ ERROR FINAL:", error.message);
       res.status(500).json({ success: false, error: error.message });
     }
   });

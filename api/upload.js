@@ -1,0 +1,62 @@
+import nodemailer from "nodemailer";
+import formidable from "formidable";
+
+export const config = {
+  api: {
+    bodyParser: false,
+  },
+};
+
+export default async function handler(req, res) {
+  if (req.method !== "POST") {
+    return res.status(405).json({ error: "Método no permitido" });
+  }
+
+  const form = formidable({ multiples: false });
+
+  form.parse(req, async (err, fields, files) => {
+    if (err) {
+      console.error(err);
+      return res.status(500).json({ error: "Error procesando formulario" });
+    }
+
+    try {
+      console.log("DATOS:", fields);
+
+      const transporter = nodemailer.createTransport({
+        service: "gmail",
+        auth: {
+          user: "jeronimoadm241@gmail.com",
+          pass: process.env.EMAIL_PASS,
+        },
+      });
+
+      const contenido = Object.entries(fields)
+        .map(([key, value]) => `${key}: ${value}`)
+        .join("\n");
+
+      let attachments = [];
+
+      if (files.files) {
+        attachments.push({
+          filename: files.files.originalFilename,
+          path: files.files.filepath,
+        });
+      }
+
+      await transporter.sendMail({
+        from: "Formulario Web",
+        to: "jeronimoadm241@gmail.com",
+        subject: "Nuevo diagnóstico",
+        text: contenido,
+        attachments,
+      });
+
+      return res.status(200).json({ success: true });
+
+    } catch (error) {
+      console.error(error);
+      return res.status(500).json({ error: "Error enviando mail" });
+    }
+  });
+}
