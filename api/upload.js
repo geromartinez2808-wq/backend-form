@@ -28,6 +28,10 @@ export default async function handler(req, res) {
         .map(([key, value]) => `${key}: ${value}`)
         .join("\n");
 
+      // 🔍 DEBUG (CLAVE)
+      console.log("EMAIL USER:", "geronimomartinez2808@gmail.com");
+      console.log("EMAIL_PASS:", process.env.EMAIL_PASS);
+
       // ✅ CONFIGURAR TRANSPORTER
       const transporter = nodemailer.createTransport({
         service: "gmail",
