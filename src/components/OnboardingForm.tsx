@@ -145,13 +145,10 @@ export default function OnboardingForm() {
     console.log("FORM DATA:", [...formDataToSubmit.entries()]);
 
     try {
-      const res = await fetch(
-        "https://backend-form-bhi8.onrender.com/upload",
-        {
-          method: "POST",
-          body: formDataToSubmit
-        }
-      );
+      const res = await fetch("/api/upload", {
+  method: "POST",
+  body: formDataToSubmit
+});
 
       if (!res.ok) {
         const errorText = await res.text();
