@@ -24,12 +24,20 @@ export default async function handler(req, res) {
       console.log("DATOS:", fields);
 
       const transporter = nodemailer.createTransport({
-        service: "gmail",
-        auth: {
-          user: "jeronimoadm241@gmail.com",
-          pass: process.env.EMAIL_PASS,
-        },
-      });
+  service: "gmail",
+  auth: {
+    user: "geronimomartinez2808@gmail.com",
+    pass: process.env.EMAIL_PASS,
+  },
+});
+
+await transporter.sendMail({
+  from: "Formulario Web",
+  to: "geronimoadm241@gmail.com",
+  subject: "Nuevo diagnóstico",
+  text: contenido,
+  attachments,
+});
 
       const contenido = Object.entries(fields)
         .map(([key, value]) => `${key}: ${value}`)
