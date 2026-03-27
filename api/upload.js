@@ -17,26 +17,26 @@ export default async function handler(req, res) {
 
   const form = formidable({ multiples: false });
 
-  form.parse(req, async (err, fields, files) => { // 👈 IMPORTANTE: agregar files
+  form.parse(req, async (err, fields, files) => {
     if (err) {
-      console.error(err);
+      console.error("FORM ERROR:", err);
       return res.status(500).json({ error: "Error procesando formulario" });
     }
 
     try {
       console.log("DATOS:", fields);
-      console.log("FILES:", files); // 👈 DEBUG
+      console.log("FILES:", files);
 
-      // 📄 contenido del mail
+      // 📄 Contenido del mail
       const contenido = Object.entries(fields)
         .map(([key, value]) => `${key}: ${value}`)
         .join("\n");
 
-      // 📎 ADJUNTO
+      // 📎 Adjuntos
       let attachments = [];
 
-      if (files && files.files) { // 👈 puede cambiar el nombre
-        const file = files.files;
+      if (files && files.files && files.files.length > 0) {
+        const file = files.files[0];
 
         const fileBuffer = fs.readFileSync(file.filepath);
 
@@ -46,14 +46,14 @@ export default async function handler(req, res) {
         });
       }
 
-      // 📧 envío
+      // 📧 Enviar mail
       const response = await resend.emails.send({
         from: "onboarding@resend.dev",
         to: ["geronimoadm241@gmail.com"],
         subject: "Nuevo cliente - Diagnóstico",
         text: contenido,
         reply_to: fields.email?.[0] || "geronimoadm241@gmail.com",
-        attachments, // 👈 CLAVE
+        attachments,
       });
 
       console.log("RESEND RESPONSE:", response);
