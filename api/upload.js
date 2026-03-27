@@ -16,7 +16,7 @@ export default async function handler(req, res) {
 
   const form = formidable({ multiples: false });
 
-  form.parse(req, async (err, fields, files) => {
+  form.parse(req, async (err, fields) => {
     if (err) {
       console.error(err);
       return res.status(500).json({ error: "Error procesando formulario" });
@@ -29,17 +29,20 @@ export default async function handler(req, res) {
         .map(([key, value]) => `${key}: ${value}`)
         .join("\n");
 
-      await resend.emails.send({
+      const response = await resend.emails.send({
         from: "onboarding@resend.dev",
-        to: "geronimoadm241@gmail.com",
-        subject: "Nuevo diagnóstico",
+        to: ["geronimoadm241@gmail.com"], // 👈 TU MAIL
+        subject: "Nuevo cliente - Diagnóstico",
         text: contenido,
+        reply_to: fields.email?.[0] || "geromartinez2808@gmail.com",
       });
+
+      console.log("RESEND RESPONSE:", response);
 
       return res.status(200).json({ success: true });
 
     } catch (error) {
-      console.error(error);
+      console.error("ERROR RESEND:", error);
       return res.status(500).json({ error: "Error enviando mail" });
     }
   });
