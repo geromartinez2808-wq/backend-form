@@ -103,13 +103,21 @@ export default function OnboardingForm() {
     }));
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setArchivo(file);
-    }
-  };
+const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const file = e.target.files?.[0];
 
+  if (!file) return;
+
+  const maxSize = 5 * 1024 * 1024; // 5MB
+
+  if (file.size > maxSize) {
+    alert("El archivo supera el máximo permitido (5MB)");
+    e.target.value = "";
+    return;
+  }
+
+  setArchivo(file);
+};
   const removeFile = () => {
     setArchivo(null);
     if (fileInputRef.current) {
