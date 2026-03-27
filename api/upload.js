@@ -1,11 +1,13 @@
-import nodemailer from "nodemailer";
 import formidable from "formidable";
+import { Resend } from "resend";
 
 export const config = {
   api: {
     bodyParser: false,
   },
 };
+
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 export default async function handler(req, res) {
   if (req.method !== "POST") {
@@ -23,43 +25,15 @@ export default async function handler(req, res) {
     try {
       console.log("DATOS:", fields);
 
-      // ✅ CREAR CONTENIDO PRIMERO
       const contenido = Object.entries(fields)
         .map(([key, value]) => `${key}: ${value}`)
         .join("\n");
 
-      // 🔍 DEBUG (CLAVE)
-      console.log("EMAIL USER:", "geronimomartinez2808@gmail.com");
-      console.log("EMAIL_PASS:", process.env.EMAIL_PASS);
-
-      // ✅ CONFIGURAR TRANSPORTER
-      const transporter = nodemailer.createTransport({
-  host: "smtp.gmail.com",
-  port: 587,
-  secure: false,
-  auth: {
-    user: "geronimomartinez2808@gmail.com",
-    pass: process.env.EMAIL_PASS,
-  },
-});
-
-      // ✅ ADJUNTOS
-      let attachments = [];
-
-      if (files.files) {
-        attachments.push({
-          filename: files.files.originalFilename,
-          path: files.files.filepath,
-        });
-      }
-
-      // ✅ ENVIAR MAIL
-      await transporter.sendMail({
-        from: "Formulario Web",
+      await resend.emails.send({
+        from: "onboarding@resend.dev",
         to: "geronimoadm241@gmail.com",
         subject: "Nuevo diagnóstico",
         text: contenido,
-        attachments,
       });
 
       return res.status(200).json({ success: true });
